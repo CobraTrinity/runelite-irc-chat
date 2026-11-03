@@ -1494,6 +1494,7 @@ public class IrcPlugin extends Plugin
 		public void onDisconnected(String reason, boolean requested)
 		{
 			boolean heardFromServer;
+			boolean banned;
 			synchronized (IrcPlugin.this)
 			{
 				if (stale())
@@ -1503,6 +1504,7 @@ public class IrcPlugin extends Plugin
 					return;
 				}
 				heardFromServer = irc.hasReceivedData();
+				banned = irc.wasBanned();
 				irc = null;
 			}
 			IrcPanel p = panel;
@@ -1516,6 +1518,19 @@ public class IrcPlugin extends Plugin
 				log.info("Disconnected from IRC");
 				info("Disconnected from IRC.");
 				updatePanelStatus();
+				return;
+			}
+			if (banned)
+			{
+				// Retrying would just hit the ban again, and repeated attempts can get it extended.
+				wantConnected = false;
+				log.warn("IRC server banned this connection ({}); not reconnecting", reason);
+				info("The server has banned this connection (" + reason + "). Not reconnecting. "
+					+ "Bans are often temporary; try ::ircconnect later, or contact the network's staff.");
+				if (p != null)
+				{
+					p.setStatus("Banned by server");
+				}
 				return;
 			}
 			if (!heardFromServer && !quickRetryUsed)

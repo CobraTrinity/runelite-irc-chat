@@ -377,6 +377,10 @@ public class IrcClient
 
 	private volatile Socket socket;
 	private volatile boolean receivedData;
+	private volatile boolean banned;
+	/** ERROR texts servers use when a ban (K/G/Z/D-line etc.) closes the link, e.g. "Closing Link: host (K-Lined)". */
+	private static final java.util.regex.Pattern BAN_REASON =
+		java.util.regex.Pattern.compile("(?i)\\b(?:[KGZDA]-?Lined|Banned)\\b");
 	private volatile boolean requestedClose;
 	private volatile boolean registered;
 	private volatile String currentNick;
@@ -552,6 +556,16 @@ public class IrcClient
 	public boolean hasReceivedData()
 	{
 		return receivedData;
+	}
+
+	/**
+	 * True if the server closed the link because this connection is banned (465 or an ERROR naming a
+	 * K-line, G-line, Z-line, etc.). Reconnecting automatically would only hit the ban again and can get
+	 * it extended, so callers shouldn't.
+	 */
+	public boolean wasBanned()
+	{
+		return banned;
 	}
 
 	public synchronized void connect()
@@ -743,7 +757,14 @@ public class IrcClient
 			case "PING":
 				sendRaw("PONG :" + m.param(0));
 				return;
+			case "465": // ERR_YOUREBANNEDCREEP; the server follows it with ERROR and closes.
+				banned = true;
+				return;
 			case "ERROR":
+				if (BAN_REASON.matcher(m.param(0)).find())
+				{
+					banned = true;
+				}
 				throw new ServerError(m.param(0).isEmpty() ? "Server error" : m.param(0));
 			case "CAP":
 				handleCap(m);

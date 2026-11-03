@@ -4,6 +4,7 @@ import java.awt.BorderLayout;
 import java.awt.CardLayout;
 import java.awt.Color;
 import java.awt.Component;
+import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
@@ -201,10 +202,20 @@ class IrcPanel extends PluginPanel
 
 		center.add(logScroll, "chat");
 		center.add(nickScroll, "nicks");
+		// Without this the scroll panes ask for their full content height, which pushes the input box
+		// below the bottom of the sidebar. The centre still fills whatever space is left.
+		center.setPreferredSize(new Dimension(1, 1));
 		add(center, BorderLayout.CENTER);
 
-		// Input with Up/Down history.
+		// Input with Up/Down history. Styled so it stands out from the panel background.
 		input.setToolTipText("Type a message, or /help for commands");
+		input.putClientProperty("JTextField.placeholderText", "Type a message, or /help");
+		input.setBackground(ColorScheme.DARKER_GRAY_COLOR);
+		input.setForeground(TEXT);
+		input.setCaretColor(TEXT);
+		input.setBorder(BorderFactory.createCompoundBorder(
+			BorderFactory.createLineBorder(ColorScheme.MEDIUM_GRAY_COLOR),
+			BorderFactory.createEmptyBorder(4, 5, 4, 5)));
 		input.addActionListener(e -> submit());
 		input.addKeyListener(new KeyAdapter()
 		{

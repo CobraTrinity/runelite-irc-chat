@@ -98,6 +98,41 @@ public class IrcClientTest
 		assertEquals(IrcClient.DEFAULT_NICK_LENGTH, IrcClient.toValidNick("abcdefghijklmnopqrstuvwxyz").length());
 	}
 
+	@Test
+	public void banIsDetectedSoWeDontReconnect() throws Exception
+	{
+		for (String error : new String[]{
+			"ERROR :Closing Link: host.example (K-Lined)",
+			"ERROR :Closing Link: host.example (*** Banned )",
+			"ERROR :Closing Link: host.example (Z-lined: open proxy)"})
+		{
+			Fed f = new Fed();
+			try
+			{
+				f.feed(error);
+			}
+			catch (Exception expected)
+			{
+				// ERROR always ends the connection.
+			}
+			assertTrue(error, f.client.wasBanned());
+		}
+
+		Fed numeric = new Fed();
+		numeric.feed(":srv 465 me :You are banned from this server");
+		assertTrue(numeric.client.wasBanned());
+
+		Fed ordinary = new Fed();
+		try
+		{
+			ordinary.feed("ERROR :Closing Link: host.example (Ping timeout: 240 seconds)");
+		}
+		catch (Exception expected)
+		{
+		}
+		assertFalse(ordinary.client.wasBanned());
+	}
+
 	/** Client fed server lines directly, with a listener that records what it was told. */
 	private static final class Fed implements IrcClient.Listener
 	{
