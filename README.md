@@ -1,6 +1,14 @@
 # IRC Chat for RuneLite
 
-Chat on an IRC channel without leaving the game. Messages from the channel appear in your chatbox, and you reply with `::irc`.
+Chat on IRC without leaving the game. Messages appear in your chatbox and in a sidebar panel, and you reply with `::i` or by typing in the panel.
+
+| Side panel | Nick list |
+|---|---|
+| ![The side panel showing #runelite's scrollback](docs/panel-chat.png) | ![The side panel's nick list](docs/panel-nicks.png) |
+
+In the chatbox, each line is tagged with its channel:
+
+![IRC lines in the game chatbox](docs/chatbox.png)
 
 ## Setup
 
