@@ -94,6 +94,12 @@ public class IrcPlugin extends Plugin
 	private volatile IrcClient irc;
 	private ScheduledFuture<?> reconnectTask;
 	private volatile long reconnectDelaySeconds = MIN_RECONNECT_SECONDS;
+	/**
+	 * Antivirus TLS scanning (e.g. Norton) can cut the first connection to a new host right after the
+	 * handshake, then let the next one through. One quick retry hides that; cleared once registered.
+	 */
+	private static final long QUICK_RETRY_MILLIS = 500;
+	private volatile boolean quickRetryUsed;
 	/** False after ::ircdisconnect or plugin shutdown, so we don't auto-reconnect. */
 	private volatile boolean wantConnected;
 	/** Nick to use when the config nick is blank; picked once per session. */
@@ -141,6 +147,7 @@ public class IrcPlugin extends Plugin
 		panel.setStatus("Not connected");
 		wantConnected = true;
 		reconnectDelaySeconds = MIN_RECONNECT_SECONDS;
+		quickRetryUsed = false;
 		if (!IrcClient.isBlank(config.channel()))
 		{
 			scheduleConnect(0);
@@ -220,7 +227,12 @@ public class IrcPlugin extends Plugin
 	// Connection management
 	// ------------------------------------------------------------------
 
-	private synchronized void scheduleConnect(long delaySeconds)
+	private void scheduleConnect(long delaySeconds)
+	{
+		scheduleConnectMillis(TimeUnit.SECONDS.toMillis(delaySeconds));
+	}
+
+	private synchronized void scheduleConnectMillis(long delayMillis)
 	{
 		cancelReconnect();
 		// Resolve the nick on the client thread (needed to read the local player's name),
@@ -231,7 +243,7 @@ public class IrcPlugin extends Plugin
 				String nick = resolveNick();
 				executor.execute(() -> connect(nick));
 			}),
-			delaySeconds, TimeUnit.SECONDS);
+			delayMillis, TimeUnit.MILLISECONDS);
 	}
 
 	private synchronized void cancelReconnect()
@@ -1097,6 +1109,7 @@ public class IrcPlugin extends Plugin
 				return;
 			}
 			reconnectDelaySeconds = MIN_RECONNECT_SECONDS;
+			quickRetryUsed = false;
 			log.info("Registered with IRC server as {}", nick);
 			info("Connected as " + nick + ".");
 			updatePanelStatus();
@@ -1480,6 +1493,7 @@ public class IrcPlugin extends Plugin
 		@Override
 		public void onDisconnected(String reason, boolean requested)
 		{
+			boolean heardFromServer;
 			synchronized (IrcPlugin.this)
 			{
 				if (stale())
@@ -1488,6 +1502,7 @@ public class IrcPlugin extends Plugin
 					log.info("Previous IRC connection closed ({})", reason);
 					return;
 				}
+				heardFromServer = irc.hasReceivedData();
 				irc = null;
 			}
 			IrcPanel p = panel;
@@ -1501,6 +1516,17 @@ public class IrcPlugin extends Plugin
 				log.info("Disconnected from IRC");
 				info("Disconnected from IRC.");
 				updatePanelStatus();
+				return;
+			}
+			if (!heardFromServer && !quickRetryUsed)
+			{
+				quickRetryUsed = true;
+				log.info("IRC connection dropped before the server replied ({}); retrying straight away", reason);
+				if (p != null)
+				{
+					p.setStatus("Retrying...");
+				}
+				scheduleConnectMillis(QUICK_RETRY_MILLIS);
 				return;
 			}
 			long delay = reconnectDelaySeconds;

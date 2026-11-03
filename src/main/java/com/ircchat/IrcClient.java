@@ -374,6 +374,7 @@ public class IrcClient
 	private final BlockingQueue<String> outQueue = new LinkedBlockingQueue<>();
 
 	private volatile Socket socket;
+	private volatile boolean receivedData;
 	private volatile boolean requestedClose;
 	private volatile boolean registered;
 	private volatile String currentNick;
@@ -538,6 +539,15 @@ public class IrcClient
 	// ------------------------------------------------------------------
 	// Lifecycle
 	// ------------------------------------------------------------------
+
+	/**
+	 * True once the server has sent at least one line. A connection that drops before this was
+	 * most likely cut by something in between (e.g. antivirus TLS scanning), not by the server.
+	 */
+	public boolean hasReceivedData()
+	{
+		return receivedData;
+	}
 
 	public synchronized void connect()
 	{
@@ -712,6 +722,7 @@ public class IrcClient
 			{
 				throw new IOException("Server closed the connection");
 			}
+			receivedData = true;
 			pingSent = false;
 			if (!line.isEmpty())
 			{
