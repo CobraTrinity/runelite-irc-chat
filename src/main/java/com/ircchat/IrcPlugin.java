@@ -1643,7 +1643,7 @@ public class IrcPlugin extends Plugin
 	private String chatboxFormat(Line line)
 	{
 		StringBuilder sb = new StringBuilder();
-		if (config.showTimestamps())
+		if (config.showTimestamps() && !runeliteTimestampsOn())
 		{
 			sb.append(col(TIMESTAMP.format(line.time) + " ", config.messageColor()));
 		}
@@ -1661,6 +1661,16 @@ public class IrcPlugin extends Plugin
 			sb.append(nick(line.nick)).append(col(": " + line.text, config.messageColor()));
 		}
 		return sb.toString();
+	}
+
+	/**
+	 * Whether RuneLite's Chat Timestamps plugin is on; it already stamps every chatbox line, so
+	 * ours would be a duplicate. RuneLite saves a plugin's on/off state as runelite.&lt;class name in
+	 * lower case&gt;; Chat Timestamps is off by default, so a missing value means off.
+	 */
+	private boolean runeliteTimestampsOn()
+	{
+		return Boolean.parseBoolean(configManager.getConfiguration("runelite", "timestampplugin"));
 	}
 
 	/** Our own channel message shown locally (when the server doesn't echo it back). */

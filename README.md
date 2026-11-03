@@ -92,7 +92,7 @@ Not implemented: `labeled-response`, `chathistory`, `draft/multiline`, SASL mech
 - While you're logged out, IRC messages are held and shown once you log in (the most recent 50; older ones are counted and dropped). Posting game messages with no character loaded breaks other plugins that react to chat, such as Loot Tracker.
 - **Other channels** are joined along with **Channel**. Editing the list joins or leaves just the difference, without reconnecting. Channels joined with `::ijoin` are rejoined if the connection drops, but not after a restart; add them to **Other channels** to keep them.
 - The **Watch list** uses IRCv3 `MONITOR` (Libera allows 100 nicks). You're told when someone comes online or goes offline, with an optional notification.
-- **Highlight words** notify you like your nick does, and are highlighted in the side panel. **Show timestamps** adds `HH:mm` to chatbox lines.
+- **Highlight words** notify you like your nick does, and are highlighted in the side panel. **Show timestamps** adds `HH:mm` to chatbox lines (skipped while RuneLite's Chat Timestamps plugin is on).
 - **Away when logged out** (off by default) marks you away on IRC while you're at the login screen and back when you log in. It never replaces an away message you set with `::iaway`.
 - If you message someone who is away, their away message is shown.
 - **Colour each nick** (on by default) gives every nick its own colour, picked from the name so it stays the same between sessions. Turn it off to use the single **Nick colour**.

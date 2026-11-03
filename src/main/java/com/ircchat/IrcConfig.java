@@ -220,7 +220,8 @@ public interface IrcConfig extends Config
 	@ConfigItem(
 		keyName = "showTimestamps",
 		name = "Show timestamps",
-		description = "Put the time (HH:mm) before IRC messages in the chatbox. The side panel always shows it",
+		description = "Put the time (HH:mm) before IRC messages in the chatbox. Skipped while RuneLite's Chat Timestamps "
+			+ "plugin is on, since it already stamps every line. The side panel always shows the time",
 		position = 9,
 		section = displaySection
 	)
