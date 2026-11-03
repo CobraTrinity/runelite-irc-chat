@@ -22,8 +22,10 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.TimeUnit;
 import javax.net.ssl.SSLParameters;
 import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLSocketFactory;
@@ -426,7 +428,10 @@ public class IrcClient
 	private final Map<String, Whois> pendingWhois = new HashMap<>();
 
 	private Thread readerThread;
-	private Thread writerThread;
+	/** Released when the connection ends; the writer waits on it instead of sleeping. */
+	private final CountDownLatch writerStop = new CountDownLatch(1);
+	/** Queued to wake the writer so it exits. Can't collide with a real line: sanitize() strips NUL. */
+	private static final String STOP_WRITER = "\0stop";
 
 	public IrcClient(Settings settings, Listener listener)
 	{
@@ -576,12 +581,8 @@ public class IrcClient
 			{
 			}
 		}
+		// Closing the socket unblocks the reader thread, which then stops the writer.
 		closeQuietly();
-		Thread r = readerThread;
-		if (r != null)
-		{
-			r.interrupt();
-		}
 	}
 
 	private void run()
@@ -590,9 +591,9 @@ public class IrcClient
 		try
 		{
 			open();
-			writerThread = new Thread(this::writeLoop, "irc-chat-writer");
-			writerThread.setDaemon(true);
-			writerThread.start();
+			Thread writer = new Thread(this::writeLoop, "irc-chat-writer");
+			writer.setDaemon(true);
+			writer.start();
 
 			// CAP LS before NICK/USER holds registration until we send CAP END.
 			capNegotiating = true;
@@ -619,10 +620,7 @@ public class IrcClient
 		{
 			registered = false;
 			closeQuietly();
-			if (writerThread != null)
-			{
-				writerThread.interrupt();
-			}
+			stopWriter();
 			listener.onDisconnected(requestedClose ? "Disconnected" : reason, requestedClose);
 		}
 	}
@@ -1900,9 +1898,13 @@ public class IrcClient
 		long penaltyUntil = System.currentTimeMillis();
 		try
 		{
-			while (!Thread.currentThread().isInterrupted())
+			while (true)
 			{
 				String line = outQueue.take();
+				if (STOP_WRITER.equals(line) || writerStop.getCount() == 0)
+				{
+					return;
+				}
 				if (registered)
 				{
 					long now = System.currentTimeMillis();
@@ -1911,9 +1913,10 @@ public class IrcClient
 						penaltyUntil = now;
 					}
 					long wait = penaltyUntil - now - 10_000;
-					if (wait > 0)
+					// Wait out the flood penalty, but return at once if the connection closes meanwhile.
+					if (wait > 0 && writerStop.await(wait, TimeUnit.MILLISECONDS))
 					{
-						Thread.sleep(wait);
+						return;
 					}
 					penaltyUntil += 2_000;
 				}
@@ -1928,6 +1931,12 @@ public class IrcClient
 			// Reader thread will notice the dead socket and report the disconnect.
 			closeQuietly();
 		}
+	}
+
+	private void stopWriter()
+	{
+		writerStop.countDown();
+		outQueue.offer(STOP_WRITER);
 	}
 
 	private void writeNow(String line) throws IOException
