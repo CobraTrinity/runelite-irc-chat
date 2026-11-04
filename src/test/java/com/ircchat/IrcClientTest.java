@@ -133,6 +133,37 @@ public class IrcClientTest
 		assertFalse(ordinary.client.wasBanned());
 	}
 
+	@Test
+	public void servicesCommandsAreRedactedForDisplay() throws Exception
+	{
+		assertEquals("register ****", IrcClient.redactForDisplay("NickServ", "register hunter2 me@example.com"));
+		assertEquals("SET ****", IrcClient.redactForDisplay("nickserv", "SET PASSWORD hunter2"));
+		assertEquals("VERIFY ****", IrcClient.redactForDisplay("NickServ", "VERIFY REGISTER Me abc123"));
+		assertEquals("IDENTIFY ****", IrcClient.redactForDisplay("ChanServ", "IDENTIFY #chan pass"));
+		assertEquals("HELP", IrcClient.redactForDisplay("NickServ", "HELP"));
+		assertEquals("hi there friend", IrcClient.redactForDisplay("Bob", "hi there friend"));
+
+		// The echoed copy of our own REGISTER must not carry the password to the listener.
+		final List<String> shown = new java.util.ArrayList<>();
+		IrcClient.Settings s = new IrcClient.Settings();
+		s.nick = "me";
+		IrcClient c = new IrcClient(s, new IrcClient.Listener()
+		{
+			@Override
+			public void onMessage(IrcClient.ChatEvent e)
+			{
+				shown.add(e.text);
+			}
+
+			@Override
+			public void onDisconnected(String reason, boolean requested)
+			{
+			}
+		});
+		c.handle(IrcClient.Message.parse(":me!u@h PRIVMSG NickServ :register hunter2 me@example.com"));
+		assertEquals(java.util.Collections.singletonList("register ****"), shown);
+	}
+
 	/** Client fed server lines directly, with a listener that records what it was told. */
 	private static final class Fed implements IrcClient.Listener
 	{

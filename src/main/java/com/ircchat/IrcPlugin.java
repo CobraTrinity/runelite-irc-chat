@@ -1727,7 +1727,7 @@ public class IrcPlugin extends Plugin
 
 	private void showOutgoingPm(String nick, String text)
 	{
-		emit(new Line(null, "PM → " + nick, null, false, text, false, false));
+		emit(new Line(null, "PM → " + nick, null, false, IrcClient.redactForDisplay(nick, text), false, false));
 	}
 
 	private void info(String text)

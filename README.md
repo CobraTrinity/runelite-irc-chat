@@ -99,6 +99,7 @@ Not implemented: `labeled-response`, `chathistory`, `draft/multiline`, SASL mech
 - The ignore list is saved in the **Ignored nicks** setting, so it survives restarts and can be edited there too. It hides people on your side only; they aren't told.
 - IRC colour/bold codes are stripped, and `<` `>` are escaped so nobody can inject RuneLite chat tags.
 - Outgoing messages are rate-limited after registration to avoid flood kicks, and long messages are split automatically.
+- Your own messages to NickServ and other services (`REGISTER`, `SET PASSWORD`, `VERIFY`, ...) are shown with everything after the command word hidden, so passwords and codes don't appear in chat or the panel. They're sent unchanged.
 - Passwords are stored in your RuneLite config like any other setting. Keep TLS on: SASL PLAIN sends the password base64-encoded, not encrypted.
 
 ## Development

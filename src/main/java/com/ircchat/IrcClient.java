@@ -1674,6 +1674,10 @@ public class IrcClient
 		{
 			return; // never surface our own password via echo-message
 		}
+		if (self)
+		{
+			text = redactForDisplay(target, text);
+		}
 
 		if (text.length() > 1 && text.charAt(0) == '\u0001')
 		{
@@ -1704,6 +1708,22 @@ public class IrcClient
 			return;
 		}
 		listener.onMessage(new ChatEvent(target, sender, stripFormatting(text), false, self, chan, m.tags));
+	}
+
+	/**
+	 * Our own messages to a services bot (NickServ, ChanServ, SaslServ, ...) can carry passwords and codes:
+	 * REGISTER pass email, SET PASSWORD pass, GHOST nick pass, VERIFY REGISTER nick code. For display, keep
+	 * only the command word. The message itself is sent unchanged.
+	 */
+	static String redactForDisplay(String target, String text)
+	{
+		if (target == null || text == null || !target.toLowerCase(java.util.Locale.ROOT).endsWith("serv"))
+		{
+			return text;
+		}
+		String t = text.trim();
+		int sp = t.indexOf(' ');
+		return sp < 0 ? t : t.substring(0, sp) + " ****";
 	}
 
 	private boolean isSelf(String nick)
